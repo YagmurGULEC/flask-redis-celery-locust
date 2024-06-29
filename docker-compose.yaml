@@ -1,0 +1,43 @@
+version: "3.8"
+services:
+
+  redis:
+    container_name: redis
+    image: redis
+    ports:
+      - "6379:6379"
+  web:
+    build:
+      context: .
+    environment:
+      FLASK_APP: run
+      FLASK_DEBUG: 1
+    volumes:
+      - .:/app
+    command: flask run -h 0.0.0.0 -p 8000
+    ports:
+      - 8000:8000
+
+  celery:
+    build:
+      context: .
+    environment:
+      FLASK_APP: run
+    volumes:
+      - .:/app
+    command: celery -A run.celery worker --loglevel=info
+    depends_on:
+      - redis
+  master:
+    image: locustio/locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./:/mnt/locust
+    command: -f /mnt/locust/locustfile.py --master -H http://master:8089
+
+  worker:
+      image: locustio/locust
+      volumes:
+        - ./:/mnt/locust
+      command: -f /mnt/locust/locustfile.py --worker --master-host master
